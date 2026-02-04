@@ -3,7 +3,7 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
-from .core import gregorian_to_jd, wrap360
+from ..utils.core import gregorian_to_jd, wrap360
 
 class TimeModelService:
     """Compute time scales: UTC → UT1 → TT → LMST → TLST"""

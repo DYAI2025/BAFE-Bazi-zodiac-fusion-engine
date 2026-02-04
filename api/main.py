@@ -16,6 +16,7 @@ from .services.time_model import TimeModelService
 from .services.bazi_calculator import BaZiCalculator
 from .services.fusion import FusionService
 from .services.validation import ValidationService
+from .services.ephemeris import EphemerisProvider
 
 # ============== App Setup ==============
 
@@ -111,27 +112,23 @@ async def compute_chart(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Time computation failed: {str(e)}")
     
-    # 3. Ephemeris (placeholder - would use SwissEph)
-    # For now, approximate positions
-    from .utils.core import wrap360
-    
-    positions = {}
-    tt_dt = datetime.fromisoformat(time_result["tt"].replace("Z", "+00:00"))
-    days_since_epoch = (tt_dt - datetime(2000, 1, 1)).total_seconds() / 86400.0
-    
-    # Approximate mean longitude for demonstration
-    for body in bodies:
-        if body == "Sun":
-            # Mean anomaly approximation
-            mean_long = (280.46 + 0.9856474 * days_since_epoch) % 360
-            positions[body] = mean_long
-        elif body == "Moon":
-            # Simplified lunar position
-            mean_long = (218.316 + 13.176396 * days_since_epoch) % 360
-            positions[body] = mean_long
-        else:
-            # Placeholder for other bodies
-            positions[body] = wrap360(days_since_epoch * 0.5 + 100)
+    # 3. Ephemeris (Swiss Ephemeris or approximation)
+    try:
+        ephemeris_provider = EphemerisProvider(
+            zodiac_mode=engine_config.zodiac_mode.value,
+            ayanamsa_id=engine_config.ayanamsa_id
+        )
+        
+        tt_dt = datetime.fromisoformat(time_result["tt"].replace("Z", "+00:00"))
+        positions_dict = ephemeris_provider.compute_positions(tt_dt, bodies)
+        
+        # Convert to simple {body: lambda_deg} format for fusion
+        positions = {body: pos["longitude_deg"] for body, pos in positions_dict.items()}
+        
+        ephemeris_source = "swiss_eph" if ephemeris_provider.is_available else "approximation"
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ephemeris computation failed: {str(e)}")
     
     # 4. BaZi computation
     calculator = BaZiCalculator()

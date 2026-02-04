@@ -1,7 +1,7 @@
 # BaZodiac Core Utilities
 # Safe angle operations and mathematical helpers
 
-from typing import Union
+from typing import Union, Any, Dict, List, Optional
 import math
 
 Number = Union[int, float]
